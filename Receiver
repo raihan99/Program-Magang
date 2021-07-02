@@ -1,0 +1,51 @@
+#include <SPI.h>              
+#include <mcp2515.h>          
+
+struct can_frame canMsg; 
+MCP2515 mcp2515(10);       
+ 
+void setup() {
+
+  Serial.begin(9600);  
+  SPI.begin();                                    
+
+  Serial.println("SPEED TESTER");
+  Serial.println("CAN BUS ARDUINO");
+  delay(3000);
+  
+  mcp2515.reset();                          
+  mcp2515.setBitrate(CAN_500KBPS,MCP_8MHZ);  
+  mcp2515.setNormalMode();                  
+}
+
+void loop() 
+{
+  if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) 
+  {
+     int a = canMsg.data[0];         
+     int  b = canMsg.data[1]; 
+     int  c = canMsg.data[2];   
+     int d = canMsg.data[3]; 
+     int e = canMsg.data[4];
+     int f = canMsg.data[5];
+     int f1 = canMsg.data[6];
+      
+      Serial.print("RPM : ");
+      Serial.print(a);
+      Serial.print("\t"); 
+      Serial.print(">MAX RPM : ");
+      Serial.print(c);
+      Serial.print("\t"); 
+      Serial.print("KM/H : ");
+      Serial.print(b);
+      Serial.print("\t"); 
+      Serial.print(">MAX KM/H : ");
+      Serial.print(d);
+      Serial.print("\t"); 
+      Serial.print("AVE SPEED : ");
+      Serial.print(e);
+      Serial.print("\t"); 
+      Serial.print("TRIPMETER : ");
+      Serial.println(f);  
+    }
+}
