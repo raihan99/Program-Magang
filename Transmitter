@@ -1,0 +1,97 @@
+#include <SPI.h>          
+#include <mcp2515.h>     
+
+struct can_frame canMsg;
+MCP2515 mcp2515(10);     
+
+const byte ledpin = 5;    
+const byte interruptPin = 3;  
+volatile unsigned int spins =0;  
+volatile unsigned int spins2 =0;  
+volatile unsigned long  timenow=0;  
+volatile unsigned long  lasttime=0;   
+volatile unsigned int rpm=0;         
+volatile float kph=0;
+volatile float trip=0;
+unsigned int displayrpm=10;  
+unsigned int displayspins = 999; 
+volatile unsigned int maxrpm=0;  
+volatile float maxkph=0;  
+volatile float lastkph=0;
+volatile float kphnow=0;
+volatile float avespeed=0;
+
+void setup() 
+{
+  while (!Serial);
+  Serial.begin(9600);
+  SPI.begin();          
+
+  pinMode(ledpin, OUTPUT);  
+  pinMode(interruptPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), countspin, RISING); 
+  
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS,MCP_8MHZ); 
+  mcp2515.setNormalMode();
+}
+
+void loop() 
+{
+  // update the display if the RPM or spins change
+  if (rpm != displayrpm | spins != displayspins) 
+  {    
+ 
+    displayrpm = rpm;         // Update rpm displayed
+    displayspins = spins;     // Update spins displayed
+    
+    canMsg.can_id  = 0x036;           
+    canMsg.can_dlc = 8;               
+    canMsg.data[0] = rpm;            
+    canMsg.data[1] = kph;           
+    canMsg.data[2] = maxrpm;            
+    canMsg.data[3] = maxkph;
+    canMsg.data[4] = avespeed;
+    canMsg.data[5] = trip;
+    canMsg.data[6] = 0x00;
+    canMsg.data[7] = 0x00;
+    mcp2515.sendMessage(&canMsg);     
+  }
+}
+
+void countspin()
+{
+  //LED Indicator
+  digitalWrite(ledpin, !digitalRead(ledpin));
+
+  //Spins Counter
+  spins++; 
+
+  //RPM Calculate
+  timenow=micros();     
+  rpm = 60000000 / ( timenow - lasttime );    
+  lasttime=timenow;        
+
+  //Trip Calculate / every 1.2 Meter will update the trip
+  trip = 1.20 * spins;
+
+  //KM/H Calculate
+  kph = 2 * 3.6 * 3.14 * 0.19 * rpm/60;
+
+  //Average Speed
+  lastkph = kphnow + kph;
+  kphnow = lastkph;
+  avespeed = lastkph / spins;
+
+  //Update max kph
+  if (kph > maxkph)
+  {
+    maxkph=kph;
+  }
+  
+  //Update max rpm 
+  if(rpm > maxrpm)
+  {    
+    maxrpm=rpm; 
+  }
+}
